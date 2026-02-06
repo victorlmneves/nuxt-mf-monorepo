@@ -1,60 +1,60 @@
 name: E2E Tests
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
 
 jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-      - name: Install
-        run: pnpm install
-      - name: Build all
-        run: pnpm build:all
+    e2e:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - name: Setup pnpm
+              uses: pnpm/action-setup@v2
+              with:
+                  version: 8
+            - name: Install
+              run: pnpm install
+            - name: Build all
+              run: pnpm build:all
 
-      - name: Verify remote bundles integrity
-        run: pnpm sri:verify
-        env:
-          REMOTE_CHECKOUT_SERVER_PATH: ${{ secrets.REMOTE_CHECKOUT_SERVER_PATH }}
-          REMOTE_CHECKOUT_SERVER_INTEGRITY: ${{ secrets.REMOTE_CHECKOUT_SERVER_INTEGRITY }}
-          REMOTE_PROFILE_SERVER_PATH: ${{ secrets.REMOTE_PROFILE_SERVER_PATH }}
-          REMOTE_PROFILE_SERVER_INTEGRITY: ${{ secrets.REMOTE_PROFILE_SERVER_INTEGRITY }}
-          REMOTE_ADMIN_SERVER_PATH: ${{ secrets.REMOTE_ADMIN_SERVER_PATH }}
-          REMOTE_ADMIN_SERVER_INTEGRITY: ${{ secrets.REMOTE_ADMIN_SERVER_INTEGRITY }}
-      - id: health
-        name: Health check (local services)
-        run: pnpm health:all
-        continue-on-error: true
-        # if your CI needs different endpoints or timeouts, set these secrets/envs
-        env:
-          HEALTH_TIMEOUT_MS: ${{ secrets.HEALTH_TIMEOUT_MS }}
-          HOST_HEALTH: ${{ secrets.HOST_HEALTH }}
-          CHECKOUT_HEALTH: ${{ secrets.CHECKOUT_HEALTH }}
-          PROFILE_HEALTH: ${{ secrets.PROFILE_HEALTH }}
-          ADMIN_HEALTH: ${{ secrets.ADMIN_HEALTH }}
+            - name: Verify remote bundles integrity
+              run: pnpm sri:verify
+              env:
+                  REMOTE_CHECKOUT_SERVER_PATH: ${{ secrets.REMOTE_CHECKOUT_SERVER_PATH }}
+                  REMOTE_CHECKOUT_SERVER_INTEGRITY: ${{ secrets.REMOTE_CHECKOUT_SERVER_INTEGRITY }}
+                  REMOTE_PROFILE_SERVER_PATH: ${{ secrets.REMOTE_PROFILE_SERVER_PATH }}
+                  REMOTE_PROFILE_SERVER_INTEGRITY: ${{ secrets.REMOTE_PROFILE_SERVER_INTEGRITY }}
+                  REMOTE_ADMIN_SERVER_PATH: ${{ secrets.REMOTE_ADMIN_SERVER_PATH }}
+                  REMOTE_ADMIN_SERVER_INTEGRITY: ${{ secrets.REMOTE_ADMIN_SERVER_INTEGRITY }}
+            - id: health
+              name: Health check (local services)
+              run: pnpm health:all
+              continue-on-error: true
+              # if your CI needs different endpoints or timeouts, set these secrets/envs
+              env:
+                  HEALTH_TIMEOUT_MS: ${{ secrets.HEALTH_TIMEOUT_MS }}
+                  HOST_HEALTH: ${{ secrets.HOST_HEALTH }}
+                  CHECKOUT_HEALTH: ${{ secrets.CHECKOUT_HEALTH }}
+                  PROFILE_HEALTH: ${{ secrets.PROFILE_HEALTH }}
+                  ADMIN_HEALTH: ${{ secrets.ADMIN_HEALTH }}
 
-      - name: Upload logs on health failure
-        if: ${{ steps.health.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-logs
-          path: |
-            logs/**
-            host/.output/**
-            checkout/.output/**
-            profile/.output/**
-            admin/.output/**
-            .nuxt/**
-            .output/**
-      - name: Run E2E
-        run: pnpm test:e2e
-        env:
-          PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}
+            - name: Upload logs on health failure
+              if: ${{ steps.health.outcome == 'failure' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: ci-logs
+                  path: |
+                      logs/**
+                      host/.output/**
+                      checkout/.output/**
+                      profile/.output/**
+                      admin/.output/**
+                      .nuxt/**
+                      .output/**
+            - name: Run E2E
+              run: pnpm test:e2e
+              env:
+                  PLAYWRIGHT_BASE_URL: ${{ secrets.PLAYWRIGHT_BASE_URL }}

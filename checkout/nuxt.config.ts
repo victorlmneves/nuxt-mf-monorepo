@@ -1,4 +1,5 @@
 // Remote checkout com Module Federation (exposes)
+
 export default {
     ssr: false,
     builder: 'webpack',
@@ -9,13 +10,14 @@ export default {
 
             // Require webpack at runtime to avoid config-time resolution errors
             let ModuleFederationPlugin: any = null;
+
             try {
                 // eslint-disable-next-line @typescript-eslint/no-var-requires
                 const webpack = require('webpack');
                 ModuleFederationPlugin = webpack?.container?.ModuleFederationPlugin;
-            } catch (e) {
+            } catch (error) {
                 // @ts-ignore
-                console.warn('webpack not available; skipping ModuleFederationPlugin setup', e && e.message);
+                console.warn('webpack not available; skipping ModuleFederationPlugin setup', error && error.message);
             }
 
             if (ModuleFederationPlugin && isClient) {

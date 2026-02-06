@@ -6,7 +6,7 @@ import RemoteHome from '../components/RemoteHome.vue';
     <div class="admin-home">
         <h1>Admin (Remote)</h1>
         <p>
-            Componente remoto exposto:
+             Remote component exposed:
             <strong>RemoteHome</strong>
         </p>
         <RemoteHome />

@@ -1,7 +1,7 @@
 <template>
     <div class="remote-home">
         <h2>Profile Remote</h2>
-        <p>Este é o componente remoto do `profile`.</p>
+        <p>This is the profile remote home page.</p>
     </div>
 </template>
 

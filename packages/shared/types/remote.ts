@@ -9,6 +9,7 @@ export type RemoteRoute = {
 export type GetRoutes = () => Promise<RemoteRoute[]> | RemoteRoute[];
 
 export type RemoteModule = any;
+
 // A minimal representation of a federated container expected shape on server
 export type RemoteFactory = () => any;
 

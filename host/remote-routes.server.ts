@@ -11,6 +11,12 @@ import { URL } from 'url';
 import crypto from 'crypto';
 import type { RemoteContainer, GetRoutes } from '../packages/shared/types/remote';
 
+/**
+ * Fetches the contents of a URL and resolves with an object containing the response body as a string and optionally the response status code.
+ * Rejects with an Error if the response status code is 400 or higher.
+ * @param {string} url - The URL to fetch.
+ * @returns {Promise<{ code: string; status?: number }>} - A promise that resolves with an object containing the response body as a string and optionally the response status code.
+ */
 function fetchText(url: string): Promise<{ code: string; status?: number }> {
     return new Promise((resolve, reject) => {
         try {
@@ -36,18 +42,50 @@ function fetchText(url: string): Promise<{ code: string; status?: number }> {
     });
 }
 
+/**
+ * Computes a Subresource Integrity (SRI) hash for a given code string.
+ * Returns a string in the format `sha256-<base64-hash>`.
+ * @param {string} code - The code string to compute the SRI hash for.
+ * @returns {string} - The computed SRI hash string.
+ */
 function computeSRI(code: string): string {
     const hash = crypto.createHash('sha256').update(code, 'utf8').digest('base64');
+
     return `sha256-${hash}`;
 }
 
+/**
+ * Verifies the integrity of a code string against an expected SRI hash.
+ * Returns true if the code matches the expected integrity, false otherwise.
+ * If no expected integrity is provided, returns true.
+ * Note: the expected integrity can be a comma-separated list of SRI hashes.
+ * The actual integrity is computed using {@link computeSRI}.
+ * The actual integrity is matched against the expected integrity values
+ * case-insensitively, and also against the values without the 'sha256-' prefix.
+ */
 function verifyIntegrity(code: string, expected?: string): boolean {
-    if (!expected) return true;
+    if (!expected) {
+        return true;
+    }
+
     const actual = computeSRI(code);
     const parts = expected.split(',').map((s) => s.trim());
+
     return parts.some((p) => p === actual || p === actual.replace('sha256-', '') || p === actual.toLowerCase());
 }
 
+/**
+ * Loads a remote container from a local file path or URL.
+ * Performs an integrity check if an expected SRI hash is provided.
+ * If the container is successfully loaded, it is initialized with the host's share scopes object.
+ * If the container exposes an `init` function, it is called with the host's share scopes object.
+ *
+ * @param {string} pathOrUrl - The local file path or URL of the remote container.
+ * @param {string} scope - The name of the remote container.
+ * @param {string} [expectedIntegrity] - The expected SRI hash for the remote container.
+ * @returns {Promise<RemoteContainer | null>} - A promise that resolves with the loaded container,
+ *   or null if an error occurred.
+ */
 export async function loadServerContainer(pathOrUrl: string, scope: string, expectedIntegrity?: string): Promise<RemoteContainer | null> {
     try {
         if (!pathOrUrl) {
@@ -192,10 +230,10 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
                         try {
                             // @ts-ignore
                             await maybe.init((global as any).__webpack_share_scopes__.default);
-                        } catch (e) {
+                        } catch (error) {
                             console.warn(
                                 `[remote-loader] error initializing container ${scope} from ${pathOrUrl}:`,
-                                e && e.message ? e.message : e
+                                error && error.message ? error.message : error
                             );
                         }
                     }
@@ -227,6 +265,11 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
     }
 }
 
+/**
+ * Loads remote routes from all configured remotes.
+ * Returns an array of route objects with shape { name: string, path: string, meta?: any }
+ * @returns {Promise<any[]>} - A promise that resolves with an array of route objects
+ */
 export async function loadRemoteRoutesServer() {
     const remotes = [
         {
@@ -254,6 +297,7 @@ export async function loadRemoteRoutesServer() {
 
             if (!container) {
                 console.info(`[remote-loader] skipping remote '${remote.name}' (no container)`);
+
                 continue;
             }
 
@@ -278,10 +322,10 @@ export async function loadRemoteRoutesServer() {
                     try {
                         const r = (await (getRoutes as GetRoutes)()) || [];
                         routes.push(...r);
-                    } catch (err) {
+                    } catch (error) {
                         console.warn(
                             `[remote-loader] error executing getRoutes from '${remote.name}':`,
-                            err && (err as Error).message ? (err as Error).message : err
+                            error && (error as Error).message ? (error as Error).message : error
                         );
                     }
                 } else {

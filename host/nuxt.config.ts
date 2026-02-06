@@ -1,4 +1,5 @@
 // Host Nuxt config com Module Federation (Webpack)
+
 export default {
     ssr: true,
     builder: 'webpack',
@@ -15,17 +16,18 @@ export default {
 
             // Dynamically require webpack at runtime to avoid top-level imports
             let ModuleFederationPlugin: any = null;
+
             try {
                 // eslint-disable-next-line @typescript-eslint/no-var-requires
                 const webpack = require('webpack');
                 ModuleFederationPlugin = webpack?.container?.ModuleFederationPlugin;
-            } catch (e) {
+            } catch (error) {
                 // webpack might not be available in all environments (or during config evaluation)
                 // In that case, skip adding the Module Federation plugin and log a warning.
                 // Nuxt build will fail later if webpack is required but missing; ensure devs install it.
                 // Use console.warn so messages are visible during build/config load.
                 // @ts-ignore
-                console.warn('webpack not available; skipping ModuleFederationPlugin setup', e && e.message);
+                console.warn('webpack not available; skipping ModuleFederationPlugin setup', error && error.message);
             }
 
             if (ModuleFederationPlugin && isClient) {

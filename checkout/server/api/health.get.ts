@@ -1,9 +1,9 @@
-import { defineEventHandler } from 'h3'
+import { defineEventHandler } from 'h3';
 
 export default defineEventHandler(() => {
-  return {
-    status: 'ok',
-    app: 'checkout',
-    pid: process.pid
-  }
-})
+    return {
+        status: 'ok',
+        app: 'checkout',
+        pid: process.pid,
+    };
+});
