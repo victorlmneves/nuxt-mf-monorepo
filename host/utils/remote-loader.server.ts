@@ -1,7 +1,9 @@
 import { loadServerContainer } from '../remote-routes.server'
 
 export async function loadRemoteServerModule(pathOrUrl: string, scope: string, moduleName: string) {
-  const container = await loadServerContainer(pathOrUrl, scope)
+  const envKey = `REMOTE_${scope.toUpperCase()}_INTEGRITY`
+  const expected = process.env[envKey] || process.env[`REMOTE_${scope.toUpperCase()}`] || undefined
+  const container = await loadServerContainer(pathOrUrl, scope, expected)
   if (!container) return null
 
   // initialize sharing if available on host

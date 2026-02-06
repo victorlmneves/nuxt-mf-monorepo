@@ -23,7 +23,9 @@
         "clean": "pnpm turbo run clean",
         "dev:local": "bash ./start-local.sh",
         "start:local": "bash ./start-local.sh",
-        "health:all": "node ./scripts/health-all.js"
+        "health:all": "node ./scripts/health-all.js",
+        "sri:generate": "node ./scripts/generate-sri.js",
+        "sri:verify": "node ./scripts/verify-remote-sri.js"
     },
     "devDependencies": {
         "@nuxt/webpack-builder": "^4.3.0",

@@ -19,6 +19,16 @@ jobs:
         run: pnpm install
       - name: Build all
         run: pnpm build:all
+
+      - name: Verify remote bundles integrity
+        run: pnpm sri:verify
+        env:
+          REMOTE_CHECKOUT_SERVER_PATH: ${{ secrets.REMOTE_CHECKOUT_SERVER_PATH }}
+          REMOTE_CHECKOUT_SERVER_INTEGRITY: ${{ secrets.REMOTE_CHECKOUT_SERVER_INTEGRITY }}
+          REMOTE_PROFILE_SERVER_PATH: ${{ secrets.REMOTE_PROFILE_SERVER_PATH }}
+          REMOTE_PROFILE_SERVER_INTEGRITY: ${{ secrets.REMOTE_PROFILE_SERVER_INTEGRITY }}
+          REMOTE_ADMIN_SERVER_PATH: ${{ secrets.REMOTE_ADMIN_SERVER_PATH }}
+          REMOTE_ADMIN_SERVER_INTEGRITY: ${{ secrets.REMOTE_ADMIN_SERVER_INTEGRITY }}
       - id: health
         name: Health check (local services)
         run: pnpm health:all

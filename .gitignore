@@ -41,3 +41,6 @@ coverage/
 # Packages and archives
 *.tgz
 *.zip
+
+# Test artifacts
+test-results/
