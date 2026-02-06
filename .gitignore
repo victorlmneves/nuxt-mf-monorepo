@@ -1,0 +1,43 @@
+# Node
+node_modules/
+
+# pnpm cache
+/.pnpm-debug.log*
+npm-debug.log*
+yarn-error.log
+
+# Runtime / build outputs
+.nuxt/
+.output/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Environment
+.env
+.env.*.local
+.env.local
+
+# Editor/IDE
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# macOS
+.DS_Store
+
+# Coverage
+coverage/
+
+# Misc caches
+.turbo/
+.cache/
+.parcel-cache/
+
+# Packages and archives
+*.tgz
+*.zip

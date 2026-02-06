@@ -1,0 +1,14 @@
+{
+    "name": "host",
+    "private": true,
+    "version": "0.0.0",
+    "scripts": {
+        "dev": "nuxt dev -p ${PORT:-3000}",
+        "build": "nuxt build",
+        "start": "nuxt start -p ${PORT:-3000}"
+    },
+    "dependencies": {
+        "nuxt": "^3.0.0",
+        "pinia": "^2.0.0"
+    }
+}
