@@ -80,7 +80,9 @@ if [ "$START_MODE" = "prod" ]; then
     start_service admin "pnpm --filter admin start:prod"
 else
     echo "START_MODE=dev — starting apps with their dev scripts"
-    start_service host "pnpm --filter host dev"
+    # pass local server wrapper paths and URLs to host so it can load remote routes during SSR
+    # Export both *_SERVER (server-side wrapper path) and *_URL (client remoteEntry URL) for compatibility
+    start_service host "REMOTE_CHECKOUT_SERVER=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_SERVER_PATH=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER_PATH=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER_PATH=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_URL=\"http://localhost:3001/remoteEntry.js\" REMOTE_PROFILE_URL=\"http://localhost:3002/remoteEntry.js\" REMOTE_ADMIN_URL=\"http://localhost:3003/remoteEntry.js\" pnpm --filter host dev"
     start_service checkout "pnpm --filter checkout dev"
     start_service profile "pnpm --filter profile dev"
     start_service admin "pnpm --filter admin dev"

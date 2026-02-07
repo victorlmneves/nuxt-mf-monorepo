@@ -1,7 +1,9 @@
 // Remote admin with Module Federation (exposes basics)
 
 export default {
-    ssr: false,
+    compatibilityDate: '2026-02-06',
+    // Enable SSR for server-side remote entry generation used by host SSR loader
+    ssr: true,
     builder: 'webpack',
     app: { baseURL: '/' },
     build: {

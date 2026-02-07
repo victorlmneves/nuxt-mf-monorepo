@@ -1,12 +1,15 @@
 <template>
     <div class="remote-home">
-        <h1>Checkout Remote</h1>
-        <p>Remote example component.</p>
+        <h2>Checkout Remote</h2>
+        <p>This component is exposed by the Checkout remote.</p>
+        <slot />
     </div>
 </template>
 
 <style scoped>
 .remote-home {
-    padding: 1rem;
+    padding: 0.75rem;
+    border-left: 3px solid #3b82f6;
+    background: #fff;
 }
 </style>

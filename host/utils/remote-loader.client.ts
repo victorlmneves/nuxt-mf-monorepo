@@ -2,7 +2,7 @@
 
 /**
  * Loads a remote entry module from a specified URL and initializes its container.
- * 
+ *
  * @param remoteUrl - The URL of the remote entry script to load
  * @param scope - The global scope name where the remote container will be attached
  * @returns A promise that resolves to the initialized remote container
@@ -22,11 +22,30 @@ export async function loadRemoteEntry(remoteUrl: string, scope: string) {
         document.head.appendChild(script);
     });
 
-    // @ts-ignore
-    await (window as any).__webpack_init_sharing__('default');
-    const container = (window as any)[scope];
-    // @ts-ignore
-    await container.init((window as any).__webpack_share_scopes__.default);
+    // Initialize Webpack share scope if available (some shims don't provide it)
+    const globalAny: any = window as any;
+    if (typeof globalAny.__webpack_init_sharing__ === 'function') {
+        await globalAny.__webpack_init_sharing__('default');
+    } else {
+        // ensure a share scope object exists so containers calling init won't fail
+        globalAny.__webpack_share_scopes__ = globalAny.__webpack_share_scopes__ || { default: {} };
+    }
+
+    const container = globalAny[scope];
+
+    if (!container) {
+        throw new Error(`Failed to locate container on window for scope '${scope}' after loading ${remoteUrl}`);
+    }
+
+    // Some simple shims provide a no-op init; guard the call
+    if (typeof container.init === 'function') {
+        try {
+            await container.init(globalAny.__webpack_share_scopes__.default);
+        } catch (error) {
+            // If init fails, log but allow fallback to try using exposed modules
+            console.warn(`[remote-loader] container.init failed for scope ${scope}:`, error && error.message ? error.message : error);
+        }
+    }
 
     return container;
 }
@@ -47,7 +66,8 @@ export async function loadRemoteModule(remoteUrl: string, scope: string, module:
     }
 
     const factory = await container.get(module);
-    const mod = factory();
+    // The factory may be async in our shims; await its result to get the actual module
+    const mod = await factory();
 
     return mod && (mod.default || mod);
 }

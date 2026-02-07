@@ -4,6 +4,7 @@
 // - verbose logging to help debug server-side loading
 // - stronger typing for containers
 import { existsSync } from 'fs';
+import path from 'path';
 import vm from 'vm';
 import http from 'http';
 import https from 'https';
@@ -96,15 +97,160 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
 
         // Local file path
         if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('./') || pathOrUrl.startsWith('/'))) {
-            if (!existsSync(pathOrUrl)) {
-                console.warn(`[remote-loader] local path for '${scope}' not found: ${pathOrUrl}`);
+            let resolved = pathOrUrl;
+
+            if (!existsSync(resolved)) {
+                // Try common workspace-relative fallback locations (useful for local dev wrappers)
+                const repoRootCandidate = path.resolve(__dirname, '..', '..');
+                const candidates = [
+                    path.resolve(repoRootCandidate, 'checkout', 'remoteEntry.server.js'),
+                    path.resolve(repoRootCandidate, 'profile', 'remoteEntry.server.js'),
+                    path.resolve(repoRootCandidate, 'admin', 'remoteEntry.server.js'),
+                ];
+
+                const found = candidates.find((c) => existsSync(c));
+
+                if (found) {
+                    resolved = found;
+
+                    console.info(`[remote-loader] using fallback wrapper for '${scope}' at ${resolved}`);
+                } else {
+                    console.warn(`[remote-loader] local path for '${scope}' not found: ${pathOrUrl}`);
+
+                    return null;
+                }
+            }
+
+            // attempt to load CommonJS module even when running in ESM/Nitro
+            let container: RemoteContainer | null = null;
+
+            try {
+                console.info(`[remote-loader] attempting to load local wrapper for '${scope}' from ${resolved}`);
+
+                // First try to load via Node's createRequire (works in ESM runtimes)
+                try {
+                    try {
+                        const modModule = await import('module');
+                        const createRequire = (modModule as any).createRequire;
+
+                        if (typeof createRequire === 'function') {
+                            const req = createRequire(resolved);
+
+                            try {
+                                const mod = req(resolved);
+
+                                if (mod) {
+                                    container = mod as RemoteContainer;
+
+                                    console.info(`[remote-loader] loaded local wrapper for '${scope}' via createRequire`);
+                                }
+                            } catch (error) {
+                                console.debug(`[remote-loader] createRequire require failed for ${resolved}:`, error && error.message ? error.message : error);
+                            }
+                        }
+                    } catch (error) {
+                        console.debug(`[remote-loader] createRequire import failed for ${resolved}:`, error && error.message ? error.message : error);
+                    }
+
+                    if (!container) {
+                        // Next try dynamic import (works in ESM runtimes and will load CJS modules with a default export)
+                        try {
+                            const urlMod = await import('url');
+                            const { pathToFileURL } = urlMod as any;
+                            const mod = await import(pathToFileURL(resolved).href);
+                            const m = (mod && (mod.default || mod));
+
+                            if (m) {
+                                container = m as RemoteContainer;
+
+                                console.info(`[remote-loader] loaded local wrapper for '${scope}' via dynamic import`);
+                            }
+                        } catch (error) {
+                            console.debug(`[remote-loader] dynamic import failed for ${resolved}:`, error && error.message ? error.message : error);
+                        }
+                    }
+
+                    if (!container) {
+                        // Read and evaluate the file in a VM sandbox to avoid require/import issues
+                        const fs = await import('fs');
+                        const code = (fs as any).readFileSync(resolved, 'utf8');
+
+                        // best-effort require for sandbox (may be undefined in ESM contexts)
+                        let sandboxRequire: any = undefined;
+
+                        try {
+                            const modModule = await import('module');
+                            const createRequire = (modModule as any).createRequire;
+
+                            if (typeof createRequire === 'function') {
+                                sandboxRequire = createRequire(resolved);
+                            }
+                        } catch (error) {
+                            console.debug(`[remote-loader] createRequire import failed for sandbox in ${resolved}:`, error && error.message ? error.message : error);
+                        }
+
+                        const sandbox: any = {
+                            module: { exports: {} },
+                            exports: {},
+                            require: sandboxRequire,
+                            console: console,
+                            process: process,
+                            Buffer: Buffer,
+                            global: {},
+                            __dirname: path.dirname(resolved),
+                            __filename: resolved,
+                            __webpack_init_sharing__: async (scopeName: string) => {
+                                if (typeof (global as any).__webpack_init_sharing__ === 'function') {
+                                    try {
+                                        return await (global as any).__webpack_init_sharing__(scopeName);
+                                    } catch (error) {
+                                        console.warn(`[remote-loader] __webpack_init_sharing__ failed for ${scopeName}:`, error && error.message ? error.message : error);
+                                    }
+                                }
+
+                                if (!(global as any).__webpack_share_scopes__) {
+                                    (global as any).__webpack_share_scopes__ = { default: {} };
+                                }
+
+                                return Promise.resolve();
+                            },
+                            __webpack_share_scopes__: (global as any).__webpack_share_scopes__,
+                        };
+
+                        sandbox.global = sandbox;
+                        const context = vm.createContext(sandbox);
+                        const script = new vm.Script(code, { filename: resolved });
+                        script.runInContext(context);
+
+                        const maybe =
+                            sandbox.module && sandbox.module.exports && Object.keys(sandbox.module.exports).length
+                                ? sandbox.module.exports
+                                : sandbox.exports && Object.keys(sandbox.exports).length
+                                ? sandbox.exports
+                                : sandbox[scope] || (global as any)[scope];
+
+                        container = maybe as RemoteContainer;
+
+                        if (!container) {
+                            console.warn(`[remote-loader] did not find container API for '${scope}' after evaluating ${resolved}`);
+
+                            return null;
+                        }
+
+                        console.info(`[remote-loader] loaded local wrapper for '${scope}' via VM evaluation`);
+                    }
+                } catch (error) {
+                    console.warn(`[remote-loader] failed to evaluate ${resolved} for '${scope}':`, error && error.message ? error.message : error);
+                    console.debug(error && (error as Error).stack ? (error as Error).stack : error);
+
+                    return null;
+                }
+            } catch (error) {
+                console.warn(`[remote-loader] failed to evaluate ${resolved} for '${scope}':`, error && error.message ? error.message : error);
+                console.debug(error && (error as Error).stack ? (error as Error).stack : error);
 
                 return null;
             }
-
-            // require the remote entry which should register container on global scope
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
-            const container = require(pathOrUrl) as RemoteContainer;
 
             if (container && typeof container.get === 'function') {
                 console.info(`[remote-loader] loaded local container for '${scope}' from ${pathOrUrl}`);
@@ -113,7 +259,6 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
             }
 
             // Fallback: expect global[scope]
-            // @ts-ignore
             const globalContainer = (global as any)[scope] as RemoteContainer | undefined;
 
             if (globalContainer && typeof globalContainer.get === 'function') {
@@ -137,6 +282,7 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
                 console.warn(
                     `[remote-loader] integrity mismatch for '${scope}'. Expected ${expectedIntegrity || '<none>'}, computed ${computeSRI(code)}`
                 );
+
                 return null;
             }
 
@@ -160,12 +306,11 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
                     // noop or forward to host if available
                     if (typeof (global as any).__webpack_init_sharing__ === 'function') {
                         try {
-                            // @ts-ignore
                             return await (global as any).__webpack_init_sharing__(scopeName);
-                        } catch (e) {
+                        } catch (error) {
                             console.warn(
                                 `[remote-loader] host __webpack_init_sharing__ error for scope ${scopeName}:`,
-                                e && e.message ? e.message : e
+                                error && error.message ? error.message : error
                             );
                         }
                     }
@@ -188,12 +333,11 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
                 const script = new vm.Script(code, { filename: pathOrUrl });
                 script.runInContext(context);
             } catch (error) {
-                // evaluation error
-                // eslint-disable-next-line no-console
                 console.warn(
                     `[remote-loader] error evaluating remoteEntry for '${scope}' from ${pathOrUrl}:`,
                     error && error.message ? error.message : error
                 );
+                console.debug(error && (error as Error).stack ? (error as Error).stack : error);
             }
 
             // container could be exported via module.exports, exports, or attached to global (sandbox)
@@ -217,7 +361,6 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
 
                     // call global initializer first (some bundles expect it)
                     try {
-                        // @ts-ignore
                         await (global as any).__webpack_init_sharing__('default');
                     } catch (error) {
                         console.warn(
@@ -228,7 +371,6 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
 
                     if (typeof maybe.init === 'function') {
                         try {
-                            // @ts-ignore
                             await maybe.init((global as any).__webpack_share_scopes__.default);
                         } catch (error) {
                             console.warn(
@@ -271,23 +413,32 @@ export async function loadServerContainer(pathOrUrl: string, scope: string, expe
  * @returns {Promise<any[]>} - A promise that resolves with an array of route objects
  */
 export async function loadRemoteRoutesServer() {
+    const repoRoot = path.resolve(process.cwd());
     const remotes = [
         {
             name: 'checkout',
-            path: process.env.REMOTE_CHECKOUT_SERVER_PATH || '',
+            path:
+                process.env.REMOTE_CHECKOUT_SERVER_PATH ||
+                (existsSync(path.resolve(repoRoot, 'checkout', 'remoteEntry.server.js')) ? path.resolve(repoRoot, 'checkout', 'remoteEntry.server.js') : ''),
             integrity: process.env.REMOTE_CHECKOUT_SERVER_INTEGRITY || process.env.REMOTE_CHECKOUT_INTEGRITY || '',
         },
         {
             name: 'profile',
-            path: process.env.REMOTE_PROFILE_SERVER_PATH || '',
+            path:
+                process.env.REMOTE_PROFILE_SERVER_PATH ||
+                (existsSync(path.resolve(repoRoot, 'profile', 'remoteEntry.server.js')) ? path.resolve(repoRoot, 'profile', 'remoteEntry.server.js') : ''),
             integrity: process.env.REMOTE_PROFILE_SERVER_INTEGRITY || process.env.REMOTE_PROFILE_INTEGRITY || '',
         },
         {
             name: 'admin',
-            path: process.env.REMOTE_ADMIN_SERVER_PATH || '',
+            path:
+                process.env.REMOTE_ADMIN_SERVER_PATH ||
+                (existsSync(path.resolve(repoRoot, 'admin', 'remoteEntry.server.js')) ? path.resolve(repoRoot, 'admin', 'remoteEntry.server.js') : ''),
             integrity: process.env.REMOTE_ADMIN_SERVER_INTEGRITY || process.env.REMOTE_ADMIN_INTEGRITY || '',
         },
     ];
+
+    console.info('[remote-loader] remotes to load (server):', remotes.map(r => ({ name: r.name, path: r.path })));
 
     const routes: any[] = [];
 
@@ -315,13 +466,43 @@ export async function loadRemoteRoutesServer() {
 
             if (typeof container.get === 'function') {
                 const factory = await container.get('./getRoutes');
-                const getRoutes = factory();
+                console.info(`[remote-loader] ./getRoutes factory type for '${remote.name}':`, typeof factory);
+                console.info(`[remote-loader] invoking factory for '${remote.name}'`);
 
-                if (typeof getRoutes === 'function') {
-                    // stronger typing expected: GetRoutes
+                let maybeModuleOrFn: any = undefined;
+
+                try {
+                    // factory may be sync or async and may return a function or a module-like object
+                    maybeModuleOrFn = await Promise.resolve(factory());
+                } catch (error) {
+                    console.warn(`[remote-loader] factory invocation for '${remote.name}' threw:`, error && (error as Error).message ? (error as Error).message : error);
+
+                    continue;
+                }
+
+                console.info(`[remote-loader] ./getRoutes factory result type for '${remote.name}':`, typeof maybeModuleOrFn);
+
+                // Resolve common shapes: function, { default: function }, { getRoutes: function }
+                let getRoutesFn: any = null;
+
+                if (typeof maybeModuleOrFn === 'function') {
+                    getRoutesFn = maybeModuleOrFn;
+                } else if (maybeModuleOrFn && typeof maybeModuleOrFn.default === 'function') {
+                    getRoutesFn = maybeModuleOrFn.default;
+                } else if (maybeModuleOrFn && typeof maybeModuleOrFn.getRoutes === 'function') {
+                    getRoutesFn = maybeModuleOrFn.getRoutes;
+                }
+
+                if (typeof getRoutesFn === 'function') {
                     try {
-                        const r = (await (getRoutes as GetRoutes)()) || [];
-                        routes.push(...r);
+                        const maybeRoutes = await Promise.resolve(getRoutesFn());
+                        const r = (maybeRoutes as any) || [];
+
+                        if (Array.isArray(r)) {
+                            routes.push(...r);
+                        } else {
+                            console.warn(`[remote-loader] getRoutes from '${remote.name}' did not return an array`);
+                        }
                     } catch (error) {
                         console.warn(
                             `[remote-loader] error executing getRoutes from '${remote.name}':`,

@@ -1,12 +1,15 @@
 <template>
     <div class="remote-home">
         <h2>Profile Remote</h2>
-        <p>This is the profile remote home page.</p>
+        <p>This component is exposed by the Profile remote.</p>
+        <slot />
     </div>
 </template>
 
 <style scoped>
 .remote-home {
-    padding: 1rem;
+    padding: 0.75rem;
+    border-left: 3px solid #10b981;
+    background: #fff;
 }
 </style>

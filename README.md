@@ -52,6 +52,39 @@ pnpm install
 
 - Logs: `./logs/host.log`, `./logs/checkout.log`, `./logs/profile.log`, `./logs/admin.log`.
 
+## Stopping dev servers
+
+When you need to stop all local dev servers (host + remotes) you can run these commands on macOS/Linux.
+
+- List processes listening on common dev ports:
+
+```bash
+lsof -nP -iTCP:3000-3010 -sTCP:LISTEN
+```
+
+- Gracefully stop processes listening on those ports:
+
+```bash
+lsof -tiTCP:3000-3010 -sTCP:LISTEN | xargs -r kill
+```
+
+- Force kill if some processes remain:
+
+```bash
+lsof -tiTCP:3000-3010 -sTCP:LISTEN | xargs -r kill -9
+```
+
+Notes:
+- Be cautious with the force-kill command; it will abruptly terminate processes.
+- If you use background process helpers (e.g. `turbo`, `pnpm dlx`), you may also need to stop those daemons:
+
+```bash
+pgrep -f turbo | xargs -r kill
+pgrep -f 'pnpm dlx|pnpm' | xargs -r kill
+```
+
+These commands are intended for local development convenience — use carefully on systems running other services.
+
 ## Production locally
 
 - Build everything and run in production mode:

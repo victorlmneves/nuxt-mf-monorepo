@@ -1,6 +1,7 @@
 // Host Nuxt config com Module Federation (Webpack)
 
 export default {
+    compatibilityDate: '2026-02-06',
     ssr: true,
     builder: 'webpack',
     runtimeConfig: {

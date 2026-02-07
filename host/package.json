@@ -9,6 +9,10 @@
     },
     "dependencies": {
         "nuxt": "^3.0.0",
-        "pinia": "^2.0.0"
+        "pinia": "^2.0.0",
+        "unctx": "^2.5.0"
+    },
+    "devDependencies": {
+        "playwright": "1.58.2"
     }
 }
