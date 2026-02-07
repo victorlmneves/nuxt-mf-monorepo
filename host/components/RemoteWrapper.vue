@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, computed, onMounted } from 'vue';
+import { shallowRef, computed, onMounted, watch } from 'vue';
 import { loadRemoteModule } from '~/utils/remote-loader.client';
 import { useRuntimeConfig } from '#app';
 
@@ -16,10 +16,14 @@ const error = ref<string | null>(null);
 
 const passProps = computed(() => ({}));
 
-onMounted(async () => {
+let _loadToken = 0;
+
+async function doLoad() {
+    const token = ++_loadToken;
     loading.value = true;
+    error.value = null;
+
     try {
-        // Read client-safe runtime config (exposed by Nuxt) for remote URLs
         const config = useRuntimeConfig();
         const publicKey = `REMOTE_${props.scope.toUpperCase()}_URL`;
         let envUrl: string | undefined = undefined;
@@ -30,16 +34,32 @@ onMounted(async () => {
             console.error(`Failed to read config for ${publicKey}:`, error);
         }
 
-        const url =
-            props.url || envUrl || `http://localhost:${3000 + (['checkout', 'profile', 'admin'].indexOf(props.scope) + 1)}/remoteEntry.js`;
+        const url = props.url || envUrl || `http://localhost:${3000 + (['checkout', 'profile', 'admin'].indexOf(props.scope) + 1)}/remoteEntry.js`;
         const comp = await loadRemoteModule(url, props.scope, props.module);
-        // Prefer the default export when present (ModuleFederation exposes modules as { default: ... })
+
+        if (token !== _loadToken) {
+            return; // stale
+        }
+
         component.value = comp && (comp.default || comp);
     } catch (err: any) {
         error.value = err && err.message ? err.message : String(err);
     } finally {
-        loading.value = false;
+        if (_loadToken) {
+            loading.value = false;
+        }
     }
+}
+
+onMounted(() => {
+    doLoad();
+});
+
+// React to prop changes (client-side navigation) and reload remote component
+watch(() => [props.scope, props.module, props.url], () => {
+    // reset and load again
+    component.value = null;
+    doLoad();
 });
 </script>
 
