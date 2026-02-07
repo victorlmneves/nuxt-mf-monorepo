@@ -9,10 +9,13 @@
     },
     "dependencies": {
         "nuxt": "^3.0.0",
-        "pinia": "^2.0.0",
-        "unctx": "^2.5.0"
+        "pinia": "^2.0.0"
     },
     "devDependencies": {
-        "playwright": "1.58.2"
+        "ohash": "2.0.11",
+        "playwright": "1.58.2",
+        "unctx": "^2.5.0",
+        "unplugin": "2.3.11",
+        "webpack-hot-middleware": "2.26.1"
     }
 }

@@ -22,6 +22,18 @@ module.exports = {
             };
         }
 
+        if (id === './RemoteHome') {
+            return async () => {
+                return {
+                    default: {
+                        setup() {
+                            return () => 'profile remote (server-shim)';
+                        }
+                    }
+                };
+            };
+        }
+
         return async () => {
             throw new Error('Module not exposed: ' + id);
         };

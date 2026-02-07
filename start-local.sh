@@ -6,7 +6,7 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 LOG_DIR="$ROOT_DIR/logs"
-# Configuráveis via env vars
+# Configurable via env vars
 # HEALTH_TIMEOUT: timeout total para cada health check (segundos)
 # BASE_BACKOFF: delay base para exponential backoff (segundos)
 # MAX_BACKOFF: delay máximo entre retries (segundos)
@@ -79,13 +79,31 @@ if [ "$START_MODE" = "prod" ]; then
     start_service profile "pnpm --filter profile start:prod"
     start_service admin "pnpm --filter admin start:prod"
 else
-    echo "START_MODE=dev — starting apps with their dev scripts"
-    # pass local server wrapper paths and URLs to host so it can load remote routes during SSR
-    # Export both *_SERVER (server-side wrapper path) and *_URL (client remoteEntry URL) for compatibility
-    start_service host "REMOTE_CHECKOUT_SERVER=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_SERVER_PATH=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER_PATH=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER_PATH=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_URL=\"http://localhost:3001/remoteEntry.js\" REMOTE_PROFILE_URL=\"http://localhost:3002/remoteEntry.js\" REMOTE_ADMIN_URL=\"http://localhost:3003/remoteEntry.js\" pnpm --filter host dev"
-    start_service checkout "pnpm --filter checkout dev"
-    start_service profile "pnpm --filter profile dev"
-    start_service admin "pnpm --filter admin dev"
+    echo "START_MODE=dev — starting remotes (dev-remote-server) and host"
+    # Start lightweight dev static servers for remotes (serve .output/public) with SRI + WS
+    # Ensure dev ports are free (kill previous dev-remote-server instances if any)
+    lsof -tiTCP:3001 -sTCP:LISTEN | xargs -r kill -9 || true
+    lsof -tiTCP:3002 -sTCP:LISTEN | xargs -r kill -9 || true
+    lsof -tiTCP:3003 -sTCP:LISTEN | xargs -r kill -9 || true
+    # If the .output/public directory is missing, fall back to starting the remote's dev script
+    if [ -d "$ROOT_DIR/checkout/.output/public" ]; then
+        start_service checkout "node \"$ROOT_DIR/scripts/dev-remote-server.js\" --dir \"$ROOT_DIR/checkout/.output/public\" --port 3001 --watch"
+    else
+        start_service checkout "pnpm --filter checkout dev"
+    fi
+
+    if [ -d "$ROOT_DIR/profile/.output/public" ]; then
+        start_service profile "node \"$ROOT_DIR/scripts/dev-remote-server.js\" --dir \"$ROOT_DIR/profile/.output/public\" --port 3002 --watch"
+    else
+        start_service profile "pnpm --filter profile dev"
+    fi
+
+    if [ -d "$ROOT_DIR/admin/.output/public" ]; then
+        start_service admin "node \"$ROOT_DIR/scripts/dev-remote-server.js\" --dir \"$ROOT_DIR/admin/.output/public\" --port 3003 --watch"
+    else
+        start_service admin "pnpm --filter admin dev"
+    fi
+
 fi
 
 echo "Services started in background. PIDs: ${PIDS[*]}"
@@ -94,14 +112,20 @@ echo "Tail logs with: tail -f $LOG_DIR/host.log $LOG_DIR/checkout.log $LOG_DIR/p
 # Wait for health endpoints
 ALL_OK=0
 if ! wait_for_health host "http://localhost:3000/api/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
-if ! wait_for_health checkout "http://localhost:3001/api/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
-if ! wait_for_health profile "http://localhost:3002/api/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
-if ! wait_for_health admin "http://localhost:3003/api/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
+# Dev remote servers expose /health (dev-remote-server). Remote Nuxt dev servers may expose /api/health.
+if ! wait_for_health checkout "http://localhost:3001/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
+if ! wait_for_health profile "http://localhost:3002/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
+if ! wait_for_health admin "http://localhost:3003/health" "$HEALTH_TIMEOUT" "$BASE_BACKOFF" "$MAX_BACKOFF"; then ALL_OK=1; fi
 
 if [ "$ALL_OK" -eq 0 ]; then
+    echo "All services healthy. Starting host now."
+    # Start host with remote envs so SSR can load local wrappers and client can fetch remoteEntry URLs
+    start_service host "REMOTE_CHECKOUT_SERVER=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_SERVER_PATH=\"$ROOT_DIR/checkout/remoteEntry.server.js\" REMOTE_PROFILE_SERVER_PATH=\"$ROOT_DIR/profile/remoteEntry.server.js\" REMOTE_ADMIN_SERVER_PATH=\"$ROOT_DIR/admin/remoteEntry.server.js\" REMOTE_CHECKOUT_URL=\"http://localhost:3001/remoteEntry.js\" REMOTE_PROFILE_URL=\"http://localhost:3002/remoteEntry.js\" REMOTE_ADMIN_URL=\"http://localhost:3003/remoteEntry.js\" pnpm --filter host dev"
     echo "All services healthy. Ready for local testing."
 else
-    echo "One or more services failed health checks. Check logs in $LOG_DIR"
+    echo "One or more services failed health checks. Not starting host. Check logs in $LOG_DIR"
+    echo "If you want to start host anyway, run with START_MODE=dev and start the host manually after fixing remotes."
+    exit 1
 fi
 
 cleanup() {
