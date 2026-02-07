@@ -3,10 +3,10 @@ import { test, expect } from '@playwright/test';
 test('host links to remotes and remotes respond', async ({ page, context }) => {
     await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000');
 
-    // Verify the three remote links exist
-    const checkoutLink = page.getByRole('link', { name: 'Checkout (remote)' });
-    const profileLink = page.getByRole('link', { name: 'Profile (remote)' });
-    const adminLink = page.getByRole('link', { name: 'Admin (remote)' });
+    // Verify the three remote links exist (host shows "render in host" labels)
+    const checkoutLink = page.getByRole('link', { name: 'Checkout (render in host)' });
+    const profileLink = page.getByRole('link', { name: 'Profile (render in host)' });
+    const adminLink = page.getByRole('link', { name: 'Admin (render in host)' });
 
     await expect(checkoutLink).toHaveCount(1);
     await expect(profileLink).toHaveCount(1);

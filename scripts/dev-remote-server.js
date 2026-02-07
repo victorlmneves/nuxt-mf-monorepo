@@ -77,7 +77,10 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({ type: 'welcome', msg: 'dev-remote-server' }));
 });
 
-server.listen(PORT, () => {
+// Listen on all interfaces (IPv4 & IPv6) to avoid localhost address-family
+// routing differences where another process (Nuxt dev) may bind only to IPv6
+// and shadow requests to `localhost`.
+server.listen(PORT, '::', () => {
     console.log(`dev-remote-server serving ${DIR} on http://localhost:${PORT}`);
     console.log(`SRI manifest available at http://localhost:${PORT}/sri.json`);
     console.log(`WS reload endpoint ws://localhost:${PORT}/__remote_ws`);
