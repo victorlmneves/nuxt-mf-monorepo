@@ -131,3 +131,26 @@ pnpm sri:verify
 - Strengthen TypeScript contracts between host and remotes for `getRoutes` and exported components.
 - Add additional logging or telemetry as needed when debugging SSR remote loading.
 - For production, prefer signed bundles + HTTPS and keep integrity values in secure storage (CI secrets).
+
+## Dev shims & Playwright
+
+- During early development the remotes may expose a minimal "shim" `remoteEntry.js` (under `.output/public`) instead of a full Module Federation runtime. This is expected in the template while the full MF client bundle emission is worked on.
+- To run the host against those static shims locally (fast path):
+
+```bash
+# serve each remote's .output/public on ports 3001..3003 (examples)
+python3 -m http.server 3001 --directory checkout/.output/public &
+python3 -m http.server 3002 --directory profile/.output/public &
+python3 -m http.server 3003 --directory admin/.output/public &
+
+# then run host dev (or orchestrator)
+pnpm --filter host dev # or START_MODE=dev ./start-local.sh
+```
+
+- Recommended Playwright command (uses project-installed binary):
+
+```bash
+PLAYWRIGHT_BASE_URL=http://localhost:3000 ./node_modules/.bin/playwright test --config=playwright.config.ts -u
+```
+
+- Note: if you see 404s for HMR endpoints like `/__webpack_hmr/client` while using a static server, that's normal — HMR is only available when running the remote with `nuxt dev`.
