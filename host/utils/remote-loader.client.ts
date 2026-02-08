@@ -9,7 +9,6 @@
  * @throws Error if the remote script fails to load
  */
 export async function loadRemoteEntry(remoteUrl: string, scope: string) {
-
     if ((window as any)[scope]) {
         return (window as any)[scope];
     }
@@ -24,43 +23,107 @@ export async function loadRemoteEntry(remoteUrl: string, scope: string) {
     }
 
     let lastErr: any = null;
+    let attempts = 0;
+
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        attempts = attempt;
+
         try {
             // remove any existing script tags for the URL before re-adding
             const existing = Array.from(document.getElementsByTagName('script')) as HTMLScriptElement[];
+
             for (const s of existing) {
                 if (s.src && s.src.indexOf(remoteUrl) !== -1) {
                     s.remove();
                 }
             }
 
+            // Preflight fetch to surface HTTP/CORS errors early and avoid long silent failures
+            const PREFLIGHT_TIMEOUT = 3000; // ms
+            const SCRIPT_TIMEOUT = 10000; // ms
+
+            try {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), PREFLIGHT_TIMEOUT);
+                const res = await fetch(remoteUrl, { method: 'GET', cache: 'no-store', signal: controller.signal });
+                clearTimeout(id);
+
+                if (!res.ok) {
+                    throw new Error(`Preflight failed: HTTP ${res.status} ${res.statusText}`);
+                }
+            } catch (fe) {
+                // Re-throw so outer catch handles retry/backoff
+                throw fe;
+            }
+
             await new Promise<void>((resolve, reject) => {
                 const script = document.createElement('script');
+                let settled = false;
+
+                const to = setTimeout(() => {
+                    if (!settled) {
+                        settled = true;
+                        try {
+                            script.remove();
+                        } catch (_) {}
+
+                        reject(new Error(`Script load timed out after ${SCRIPT_TIMEOUT}ms: ${remoteUrl}`));
+                    }
+                }, SCRIPT_TIMEOUT);
+
                 script.src = remoteUrl;
                 script.type = 'text/javascript';
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error(`Failed to load ${remoteUrl}`));
+                script.onload = () => {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(to);
+                        resolve();
+                    }
+                };
+                script.onerror = (ev) => {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(to);
+                        reject(new Error(`Failed to load ${remoteUrl}`));
+                    }
+                };
+
                 document.head.appendChild(script);
             });
 
             // If script loaded, break to continue initialization
             lastErr = null;
+
             break;
         } catch (e) {
             lastErr = e;
-            if (attempt === MAX_ATTEMPTS) break;
+
+            if (attempt === MAX_ATTEMPTS) {
+                break;
+            }
+
             const delay = Math.min(MAX_DELAY, BASE_DELAY * Math.pow(2, attempt - 1));
-            console.warn(`[remote-loader] failed to load ${remoteUrl} (attempt ${attempt}): ${e && (e as any).message ? (e as any).message : e}. Retrying in ${delay}ms`);
+
+            console.warn(
+                `[remote-loader] failed to load ${remoteUrl} (attempt ${attempt}): ${e && (e as any).message ? (e as any).message : e}. Retrying in ${delay}ms`
+            );
+
             await sleep(delay);
         }
     }
 
     if (lastErr) {
-        throw new Error(`Failed to load remote entry ${remoteUrl}: ${lastErr && lastErr.message ? lastErr.message : String(lastErr)}`);
+        const msg = lastErr && lastErr.message ? lastErr.message : String(lastErr);
+        const err = new Error(`Failed to load remote entry ${remoteUrl} after ${attempts} attempt(s): ${msg}`);
+
+        console.error(`[remote-loader] ${err.message}`, lastErr);
+
+        throw err;
     }
 
     // Initialize Webpack share scope if available (some shims don't provide it)
     const globalAny: any = window as any;
+
     if (typeof globalAny.__webpack_init_sharing__ === 'function') {
         await globalAny.__webpack_init_sharing__('default');
     } else {
@@ -107,10 +170,21 @@ export async function loadRemoteModule(remoteUrl: string, scope: string, module:
     const container = await loadRemoteEntry(remoteUrl, scope);
 
     if (!container) {
-        throw new Error(`Container ${scope} not available`);
+        throw new Error(`Container '${scope}' not available after loading ${remoteUrl}`);
+    }
+    let factory: any;
+    try {
+        factory = await container.get(module);
+    } catch (err) {
+        const msg = err && err.message ? err.message : String(err);
+        console.error(`[remote-loader] failed to get module '${module}' from '${scope}' at ${remoteUrl}: ${msg}`, err);
+        throw new Error(`Failed to get module '${module}' from remote '${scope}': ${msg}`);
     }
 
-    const factory = await container.get(module);
+    if (!factory) {
+        throw new Error(`Remote '${scope}' did not expose module '${module}' (no factory returned)`);
+    }
+
     // The factory may be async in our shims; await its result to get the actual module
     const mod = await factory();
 
@@ -151,7 +225,7 @@ function setupDevReload(remoteUrl: string, scope: string) {
                 if (payload && payload.type === 'change') {
                     const changed = payload.path || '';
 
-                    if (changed.endsWith('remoteEntry.js') || Object.keys(payload.sri || {}).some(p => p.endsWith('remoteEntry.js'))) {
+                    if (changed.endsWith('remoteEntry.js') || Object.keys(payload.sri || {}).some((p) => p.endsWith('remoteEntry.js'))) {
                         console.info(`[remote-loader] dev change detected for ${scope} -> ${changed}`);
 
                         await reloadRemote(remoteUrl, scope);
@@ -159,13 +233,20 @@ function setupDevReload(remoteUrl: string, scope: string) {
                 }
             } catch (error) {
                 // ignore malformed messages
-                console.warn(`[remote-loader] failed to process dev WS message for ${scope}:`, error && error.message ? error.message : error);
+                console.warn(
+                    `[remote-loader] failed to process dev WS message for ${scope}:`,
+                    error && error.message ? error.message : error
+                );
             }
         });
 
         ws.addEventListener('open', () => console.info(`[remote-loader] connected dev WS for ${origin}`));
-        ws.addEventListener('error', () => { wsByOrigin[origin] = null; });
-        ws.addEventListener('close', () => { wsByOrigin[origin] = null; });
+        ws.addEventListener('error', () => {
+            wsByOrigin[origin] = null;
+        });
+        ws.addEventListener('close', () => {
+            wsByOrigin[origin] = null;
+        });
     } catch (error) {
         console.warn(`[remote-loader] failed to setup dev reload for ${scope}:`, error && error.message ? error.message : error);
     }

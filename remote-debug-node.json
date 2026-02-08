@@ -1,0 +1,231 @@
+{
+  "console": [
+    {
+      "type": "log",
+      "text": "%cssr:info%c [remote-loader] attempting to load local wrapper for 'checkout' from /Users/victorneves/_code/nuxt-mf-monorepo/checkout/remoteEntry.server.js \n      background: #00BCD4;\n      border-radius: 0.5em;\n      color: white;\n      font-weight: bold;\n      padding: 2px 0.5em;\n     "
+    },
+    {
+      "type": "log",
+      "text": "%cssr:info%c [remote-loader] loaded local wrapper for 'checkout' via createRequire \n      background: #00BCD4;\n      border-radius: 0.5em;\n      color: white;\n      font-weight: bold;\n      padding: 2px 0.5em;\n      \n  at process.processTicksAndRejections (node:internal/process/task_queues)\n"
+    },
+    {
+      "type": "log",
+      "text": "%cssr:info%c [remote-loader] loaded local container for 'checkout' from /Users/victorneves/_code/nuxt-mf-monorepo/checkout/remoteEntry.server.js \n      background: #00BCD4;\n      border-radius: 0.5em;\n      color: white;\n      font-weight: bold;\n      padding: 2px 0.5em;\n      \n  at process.processTicksAndRejections (node:internal/process/task_queues)\n"
+    },
+    {
+      "type": "log",
+      "text": "[HMR] connected"
+    },
+    {
+      "type": "info",
+      "text": "<Suspense> is an experimental feature and its API will likely change."
+    },
+    {
+      "type": "info",
+      "text": "[remote-loader] connected dev WS for http://localhost:3001"
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://localhost:3000/remote-example?scope=checkout",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_webpack-hot-middleware_2_26_1_node_modules_webpack-hot-middleware_c-5244c6.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/app.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/runtime.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler--a1c622.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler--fe2942.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler-sfc_3_5_-e18a45.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler-sfc_3_5_-a2aebd.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/__webpack_hmr/client",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/api/__remote_routes",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3001/remoteEntry.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.css",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.js",
+      "method": "GET"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/builds/meta/dev.json",
+      "method": "GET"
+    }
+  ],
+  "responses": [
+    {
+      "url": "http://localhost:3000/remote-example?scope=checkout",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/app.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler--a1c622.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler--fe2942.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/runtime.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler-sfc_3_5_-e18a45.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/node_modules_pnpm_nuxt_3_21_0__parcel_watcher_2_5_6__types_node_25_2_1__vue_compiler-sfc_3_5_-a2aebd.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/vendors-node_modules_pnpm_webpack-hot-middleware_2_26_1_node_modules_webpack-hot-middleware_c-5244c6.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_remote-example_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/__webpack_hmr/client",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/api/__remote_routes",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/layouts_default_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3001/remoteEntry.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.css",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/pages_index_vue.js",
+      "status": 200,
+      "statusText": "OK"
+    },
+    {
+      "url": "http://localhost:3000/_nuxt/builds/meta/dev.json",
+      "status": 200,
+      "statusText": "OK"
+    }
+  ],
+  "failures": []
+}

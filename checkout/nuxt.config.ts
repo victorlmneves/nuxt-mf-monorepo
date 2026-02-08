@@ -68,6 +68,84 @@ export default {
                         },
                     })
                 );
+
+                // Ensure the emitted remoteEntry is copied to a public-facing path
+                const fs = require('fs');
+                const path = require('path');
+
+                class CopyRemoteEntryToPublicPlugin {
+                    apply(compiler: any) {
+                        // First, try to copy from the in-memory assets (new webpack emit flow)
+                        compiler.hooks.thisCompilation.tap('CopyRemoteEntryToPublicPlugin', (compilation: any) => {
+                            const tap = compilation.hooks.processAssets && compilation.hooks.processAssets.tap;
+
+                            if (tap) {
+                                tap(
+                                    {
+                                        name: 'CopyRemoteEntryToPublicPlugin',
+                                        stage: compilation.constructor.PROCESS_ASSETS_STAGE_SUMMARIZE || 1000,
+                                    },
+                                    (assets: any) => {
+                                        try {
+                                            const keys = Object.keys(assets || compilation.assets || {});
+                                            const candidate = keys.find((k: string) => k && k.includes('remoteEntry') && k.endsWith('.js'));
+
+                                            if (candidate) {
+                                                const output =
+                                                    (assets &&
+                                                        assets[candidate] &&
+                                                        assets[candidate].source &&
+                                                        assets[candidate].source()) ||
+                                                    (compilation.assets &&
+                                                        compilation.assets[candidate] &&
+                                                        compilation.assets[candidate].source());
+
+                                                if (output) {
+                                                    const dest = path.resolve(process.cwd(), '.output', 'public', 'remoteEntry.js');
+                                                    fs.mkdirSync(path.dirname(dest), { recursive: true });
+                                                    fs.writeFileSync(dest, output);
+
+                                                    console.info('[checkout] copied emitted', candidate, '->', dest);
+                                                }
+                                            }
+                                        } catch (error) {
+                                            console.warn('[checkout] failed to copy remoteEntry from assets:', error && error.message);
+                                        }
+                                    }
+                                );
+                            }
+                        });
+
+                        // As a fallback, after files are emitted to disk, scan the compiler output directory
+                        compiler.hooks.afterEmit.tapAsync('CopyRemoteEntryToPublicPlugin', (compilation: any, callback: any) => {
+                            try {
+                                const outDir =
+                                    compiler && compiler.options && compiler.options.output && compiler.options.output.path
+                                        ? compiler.options.output.path
+                                        : path.resolve(process.cwd(), '.nuxt', 'dist', 'client');
+
+                                if (fs.existsSync(outDir)) {
+                                    const files = fs.readdirSync(outDir);
+                                    const candidate = files.find((f: string) => f && f.includes('remoteEntry') && f.endsWith('.js'));
+
+                                    if (candidate) {
+                                        const src = path.join(outDir, candidate);
+                                        const dest = path.resolve(process.cwd(), '.output', 'public', 'remoteEntry.js');
+                                        fs.mkdirSync(path.dirname(dest), { recursive: true });
+                                        fs.copyFileSync(src, dest);
+                                        console.info('[checkout] copied emitted file from disk', src, '->', dest);
+                                    }
+                                }
+                            } catch (error) {
+                                console.warn('[checkout] failed to copy remoteEntry from disk:', error && error.message);
+                            } finally {
+                                callback();
+                            }
+                        });
+                    }
+                }
+
+                config.plugins.push(new CopyRemoteEntryToPublicPlugin());
             }
 
             if (ModuleFederationPlugin && isServer) {
