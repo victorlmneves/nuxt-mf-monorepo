@@ -9,7 +9,7 @@
         "start:prod": "nuxt start -p ${PORT:-3002}"
     },
     "dependencies": {
-        "nuxt": "^3.0.0",
+        "nuxt": "^3.21.6",
         "pinia": "^2.0.0"
     }
 }
